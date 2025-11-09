@@ -58,7 +58,7 @@ if (container) {
   // === SQL-Insert Statement zusammenbauen ===
   if (results.length > 0) {
     const insertHeader = 
-      "INSERT INTO youtube_video_cache (title_norm, title, youtube_id, duration, thumbnail)\nVALUES\n";
+      "INSERT IGNORE INTO youtube_video_cache (title_norm, title, youtube_id, duration, thumbnail)\nVALUES\n";
 
     const insertValues = results.map(video => {
       const titleNormEsc = video.title_norm.replace(/'/g, "''");
@@ -68,12 +68,6 @@ if (container) {
 
       return `('${titleNormEsc}', '${titleEsc}', '${video.id}', ${duration}, '${thumbnail}')`;
     }).join(",\n");
-
-    const sqlContent = insertHeader + insertValues + "\nON DUPLICATE KEY UPDATE\n" +
-      "  title = VALUES(title),\n" +
-      "  youtube_id = VALUES(youtube_id),\n" +
-      "  thumbnail = VALUES(thumbnail),\n" +
-      "  duration = VALUES(duration);";
 
     // === Datei zum Download ===
     const blob = new Blob([sqlContent], { type: "text/plain;charset=utf-8" });
