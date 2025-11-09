@@ -17,6 +17,7 @@ const normalizeTitle = (str) => {
 // Sicherheits-Check
 if (container) {
   const results = [];
+
   Array.from(container.children).forEach(child => {
     const link = child.querySelector('a#video-title-link');
     const durationElem = child.querySelector('ytd-thumbnail-overlay-time-status-renderer span, .ytd-thumbnail-overlay-time-status-renderer span');
@@ -41,8 +42,16 @@ if (container) {
       const durationSeconds = parseDuration(durationText);
 
       if (href && titleAttr) {
-        const urlParams = new URLSearchParams(href.split('?')[1]);
-        const videoId = urlParams.get('v');
+        let videoId = null;
+
+        // Robust extrahieren
+        if (href.includes('v=')) {
+          const urlParams = new URLSearchParams(href.split('?')[1]);
+          videoId = urlParams.get('v');
+        } else if (href.startsWith('/watch/')) {
+          videoId = href.split('/').pop();
+        }
+
         if (videoId) {
           results.push({
             id: videoId,
@@ -57,7 +66,7 @@ if (container) {
 
   // === SQL-Insert Statement zusammenbauen ===
   if (results.length > 0) {
-    const insertHeader = 
+    const insertHeader =
       "INSERT IGNORE INTO youtube_video_cache (title_norm, title, youtube_id, duration, thumbnail)\nVALUES\n";
 
     const insertValues = results.map(video => {
@@ -65,9 +74,10 @@ if (container) {
       const titleEsc = video.title.replace(/'/g, "''");
       const thumbnail = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
       const duration = Number.isFinite(video.duration) ? video.duration : 0;
-
       return `('${titleNormEsc}', '${titleEsc}', '${video.id}', ${duration}, '${thumbnail}')`;
     }).join(",\n");
+
+    const sqlContent = insertHeader + insertValues + ";\n";
 
     // === Datei zum Download ===
     const blob = new Blob([sqlContent], { type: "text/plain;charset=utf-8" });
@@ -84,4 +94,6 @@ if (container) {
   } else {
     alert("Keine Videos gefunden!");
   }
+} else {
+  alert("Container #contents nicht gefunden!");
 }
