@@ -1,27 +1,46 @@
-(() => {
-  const videos = [];
+const container = document.getElementById("contents");
 
-  // Alle Videolinks auf der Seite holen, die wie /watch?v=... aussehen
-  document.querySelectorAll('a[href^="/watch?v="]').forEach(link => {
-    const url = new URL(link.href, location.origin);
-    const videoId = url.searchParams.get('v');
-    if (!videoId) return;
-
-    // Titel finden (meist im #video-title)
-    const titleEl = link.closest('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer')
-      ?.querySelector('#video-title');
-    const title = titleEl ? titleEl.textContent.trim() : '(kein Titel gefunden)';
-
-    // Duplikate vermeiden
-    if (!videos.some(v => v.videoId === videoId)) {
-      videos.push({ title, videoId });
+// Sicherheits‑Check
+if (container) {
+  const results = [];
+  
+  Array.from(container.children).forEach(child => {
+    const link = child.querySelector('a#video-title-link');
+    if (link) {
+      const href = link.getAttribute('href'); 
+      const titleAttr = link.getAttribute('title'); // <--- hier title statt aria-label
+      
+      if (href) {
+        const urlParams = new URLSearchParams(href.split('?')[1]);
+        const videoId = urlParams.get('v');
+        if (videoId && titleAttr) {
+          results.push({ id: videoId, title: titleAttr });
+        }
+      }
     }
   });
 
-  console.clear();
-  console.log(`📺 Gefundene YouTube-Videos: ${videos.length}`);
-  console.table(videos);
+  // SQL-Insert Statement zusammenbauen
+  if (results.length > 0) {
+    const insertHeader = "INSERT INTO youtube_video_cache (title_norm, title, youtube_id, thumbnail)\nVALUES\n";
+    const insertValues = results.map(video => {
+      const titleNorm = video.title.toLowerCase().replace(/'/g, "''"); // einfache Normalisierung
+      const title = video.title.replace(/'/g, "''"); // Escape für SQL
+      const thumbnail = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+      return `('${titleNorm}', '${title}', '${video.id}', '${thumbnail}')`;
+    }).join(",\n");
 
-  // Optional: alle IDs als einfache Liste ausgeben
-  console.log("Video IDs:", videos.map(v => v.videoId));
-})();
+    const insertFooter = `\nON DUPLICATE KEY UPDATE\n  title = VALUES(title),\n  youtube_id = VALUES(youtube_id),\n  thumbnail = VALUES(thumbnail);`;
+
+    const sqlContent = insertHeader + insertValues + insertFooter;
+
+    // Datei zum Download bereitstellen
+    const blob = new Blob([sqlContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "youtube_videos.sql";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
