@@ -20,7 +20,7 @@ if (container) {
 
   Array.from(container.children).forEach(child => {
     const link = child.querySelector('a#video-title-link');
-    const durationElem = child.querySelector('ytd-thumbnail-overlay-time-status-renderer span, .ytd-thumbnail-overlay-time-status-renderer span');
+    const durationElem = child.querySelector('.yt-badge-shape__text');
 
     if (link) {
       const href = link.getAttribute('href');
