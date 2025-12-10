@@ -1,42 +1,44 @@
 import requests
 
 def get_place_image(place_name):
-    url = "https://commons.wikimedia.org/w/api.php"
-
+    # 1) Von Wikipedia den Bild-Dateinamen holen
+    wp_url = "https://en.wikipedia.org/w/api.php"
     headers = {
-        "User-Agent": "OrtAPI/1.0 (kontakt@example.com)"  
-        # Ersetze die E-Mail durch deine (oder irgendeine gültige)
+        "User-Agent": "OrtAPI/1.0 (kontakt@example.com)"
     }
 
-    params = {
+    wp_params = {
         "action": "query",
         "titles": place_name,
-        "prop": "pageimages",
         "format": "json",
-        "pithumbsize": 1000,
+        "prop": "pageimages",
+        "piprop": "original",
         "origin": "*"
     }
 
-    response = requests.get(url, params=params, headers=headers)
-
-    if response.status_code != 200:
-        print("HTTP Fehler:", response.status_code)
-        print(response.text)
-        return None
-
+    wp_response = requests.get(wp_url, params=wp_params, headers=headers)
     try:
-        data = response.json()
-    except Exception as e:
-        print("Konnte JSON nicht parsen!")
-        print("Antwort war:")
-        print(response.text)
+        wp_data = wp_response.json()
+    except:
+        print("Wikipedia JSON Fehler:", wp_response.text)
         return None
-    
-    pages = data.get("query", {}).get("pages", {})
+
+    pages = wp_data.get("query", {}).get("pages", {})
+
+    file_url = None
     for _, page in pages.items():
-        thumb = page.get("thumbnail")
-        if thumb:
-            return thumb["source"]
+        if "original" in page:
+            file_url = page["original"]["source"]  # schon Original
+            return file_url  # fertig!
+
+    # Wenn kein Original-Bild da ist → versuche Datei über images-Liste zu finden
+    # Dann muss über Commons die Originaldatei geholt werden
+    img_url = None
+    for _, page in pages.items():
+        if "pageimages" in page:
+            # Fallback
+            img_url = page["pageimages"].get("source")
+            return img_url
 
     return None
 
